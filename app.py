@@ -4,7 +4,7 @@ from re import compile
 from json import dumps
 from io import BytesIO
 from calendar import isleap
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 from scipy.integrate import quad
 from scipy.optimize import root_scalar
@@ -22,6 +22,8 @@ leap_day_step = (1 + 0.2425) / 2
 earth_eccentricity = 0.0167086
 tropical_year = 365.2425
 
+tz = timezone(timedelta(hours=8))
+
 def get_swept_area_derivative(angle, zero=0):
     return 0.5 / square(1 - earth_eccentricity * cos(angle))
 
@@ -29,12 +31,12 @@ def get_swept_area(angle, zero=0):
     return quad(get_swept_area_derivative, 0, angle)[0] - zero
 
 def iterate_date_ratio():
-    year = date.today().year
+    year = datetime.now(tz).year
     while not isleap(year): year -= 1
 
     ordinal = tropical_year
     date_step = timedelta(1)
-    date_aphelion = date(year, 7, 4)
+    date_aphelion = datetime(year, 7, 4)
 
     while ordinal > 0:
         date_aphelion -= date_step
@@ -76,7 +78,7 @@ def index():
 def chrome_png():
     try:
         im = request.args.get('im', 'qq')
-        key = request.args.get('date', date.today().strftime('%m-%d'))
+        key = request.args.get('date', datetime.now(tz).strftime('%m-%d'))
 
         if key.index('-') == 4:
             year, key = key.split('-', 1)
@@ -105,7 +107,7 @@ def chrome_png():
 @app.route('/chrome.json')
 def chrome_json():
     try:
-        today = date.today()
+        today = datetime.now(tz)
         to = today.strftime('%m-%d')
         fmt = request.args.get('format', None)
         key = request.args.get('from', '2017-11-24')

@@ -9,7 +9,7 @@ from scipy.optimize import root_scalar
 
 from PIL import Image
 from numpy import cos, pi, square
-from flask import Flask, redirect, request, send_file, abort
+from flask import Flask, redirect, request, jsonify, send_file, abort
 
 leap_day_step = (1 + 0.2425) / 2
 earth_eccentricity = 0.0167086
@@ -45,7 +45,10 @@ def iterate_rotation_degree():
         args['args'] = max_area * ratio_from_aphelion
         result_from_aphelion = root_scalar(get_swept_area, **args)
 
-        yield (key, result_from_aphelion.root * 180 / pi)
+        angle = result_from_aphelion.root
+        speed = max_area / get_swept_area_derivative(angle) / tropical_year
+
+        yield (key, (angle * 180 / pi, speed * 180 / pi))
 
 date_to_rotation = dict(iterate_rotation_degree())
 
@@ -69,7 +72,7 @@ def chrome_png():
 
         assert key in date_to_rotation
         assert im == 'qq' or im == 'tim' or im == 'telegram'
-        rotation = date_to_rotation[key] - date_to_rotation["09-23"] + 60
+        rotation = date_to_rotation[key][0] - date_to_rotation["09-23"][0] + 60
 
         image = Image.open('fake_chrome.png')
         image = image.rotate(rotation, resample=Image.CUBIC)
@@ -84,5 +87,41 @@ def chrome_png():
         io.seek(0)
 
         return send_file(io, mimetype='image/png')
+    except:
+        return abort(404)
+
+@app.route('/chrome.json')
+def chrome_json():
+    try:
+        today = date.today()
+        to = today.strftime('%m-%d')
+        key = request.args.get('from', '2017-11-24')
+
+        if key.index('-') == 4:
+            year, key = key.split('-', 1)
+            assert key in date_to_rotation
+            assert key != '02-29' or isleap(int(year))
+        else:
+            assert key in date_to_rotation
+            year = '%04d' % (today.year - 1)
+
+        to_angle = date_to_rotation[to][0] - date_to_rotation['01-01'][0]
+        from_angle = date_to_rotation[key][0] - date_to_rotation['01-01'][0]
+
+        year_diff = (today.year - int(year)) * 360
+        day_diff = to_angle % 360 - from_angle % 360
+
+        rotation_angle_degree = year_diff + day_diff
+        rotation_angle_radius = rotation_angle_degree * pi / 180
+
+        rotation_speed_degree = date_to_rotation[to][1]
+        rotation_speed_radius = rotation_speed_degree * pi / 180
+
+        return jsonify({'from': '%s-%s' % (year, key),
+                        'rotation_angle': {'degree': rotation_angle_degree,
+                                           'radius': rotation_angle_radius},
+                        'rotation_speed': {'degree': rotation_speed_degree,
+                                           'radius': rotation_speed_radius}})
+
     except:
         return abort(404)

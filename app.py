@@ -9,7 +9,7 @@ from scipy.optimize import root_scalar
 
 from PIL import Image
 from numpy import cos, pi, square
-from flask import Flask, request, send_file, abort
+from flask import Flask, redirect, request, send_file, abort
 
 leap_day_step = (1 + 0.2425) / 2
 earth_eccentricity = 0.0167086
@@ -52,6 +52,10 @@ date_to_rotation = dict(iterate_rotation_degree())
 app = Flask(__name__)
 
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.route('/')
+def index():
+    return redirect('https://github.com/ustc-zzzz/avatar-service')
 
 @app.route('/chrome.png')
 def chrome_png():

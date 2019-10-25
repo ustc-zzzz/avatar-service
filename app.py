@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from re import compile
+from json import dumps
 from io import BytesIO
 from calendar import isleap
 from datetime import date, timedelta
@@ -9,7 +11,12 @@ from scipy.optimize import root_scalar
 
 from PIL import Image
 from numpy import cos, pi, square
-from flask import Flask, redirect, request, jsonify, send_file, abort
+from flask import Flask, Response, redirect, request, send_file, abort
+
+json_number_re = compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+json_format = r'{"from":%s,"rotation_angle":%s,"rotation_speed":%s}'
+rotation_format = r'{"degree":%s,"radius":%s}'
 
 leap_day_step = (1 + 0.2425) / 2
 earth_eccentricity = 0.0167086
@@ -49,6 +56,11 @@ def iterate_rotation_degree():
         speed = max_area / get_swept_area_derivative(angle) / tropical_year
 
         yield (key, (angle * 180 / pi, speed * 180 / pi))
+
+def format_to_json_number(number, fmt=None):
+    json = str(number) if fmt is None else fmt % number
+    assert json_number_re.fullmatch(json)
+    return json
 
 date_to_rotation = dict(iterate_rotation_degree())
 
@@ -95,6 +107,7 @@ def chrome_json():
     try:
         today = date.today()
         to = today.strftime('%m-%d')
+        fmt = request.args.get('format', None)
         key = request.args.get('from', '2017-11-24')
 
         if key.index('-') == 4:
@@ -111,17 +124,22 @@ def chrome_json():
         year_diff = (today.year - int(year)) * 360
         day_diff = to_angle % 360 - from_angle % 360
 
-        rotation_angle_degree = year_diff + day_diff
-        rotation_angle_radius = rotation_angle_degree * pi / 180
+        angle_degree = year_diff + day_diff
+        angle_radius = angle_degree * pi / 180
 
-        rotation_speed_degree = date_to_rotation[to][1]
-        rotation_speed_radius = rotation_speed_degree * pi / 180
+        speed_degree = date_to_rotation[to][1]
+        speed_radius = speed_degree * pi / 180
 
-        return jsonify({'from': '%s-%s' % (year, key),
-                        'rotation_angle': {'degree': rotation_angle_degree,
-                                           'radius': rotation_angle_radius},
-                        'rotation_speed': {'degree': rotation_speed_degree,
-                                           'radius': rotation_speed_radius}})
+        angle_degree = format_to_json_number(angle_degree, fmt=fmt)
+        angle_radius = format_to_json_number(angle_radius, fmt=fmt)
+        speed_degree = format_to_json_number(speed_degree, fmt=fmt)
+        speed_radius = format_to_json_number(speed_radius, fmt=fmt)
 
+        json_from = dumps('%s-%s' % (year, key))
+        json_angle = rotation_format % (angle_degree, angle_radius)
+        json_speed = rotation_format % (speed_degree, speed_radius)
+        json_body = json_format % (json_from, json_angle, json_speed)
+
+        return Response(json_body, status=200, mimetype='application/json')
     except:
         return abort(404)

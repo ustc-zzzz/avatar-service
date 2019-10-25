@@ -54,11 +54,16 @@ app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.route('/chrome.png')
-def chrome():
+def chrome_png():
     try:
         im = request.args.get('im', 'qq')
         key = request.args.get('date', date.today().strftime('%m-%d'))
 
+        if key.index('-') == 4:
+            year, key = key.split('-', 1)
+            assert key != '02-29' or isleap(int(year))
+
+        assert key in date_to_rotation
         assert im == 'qq' or im == 'tim' or im == 'telegram'
         rotation = date_to_rotation[key] - date_to_rotation["09-23"] + 60
 

@@ -116,20 +116,25 @@ def chrome_json():
             year, key = key.split('-', 1)
             assert key in date_to_rotation
             assert key != '02-29' or isleap(int(year))
+
+            base_angle = date_to_rotation['01-01'][0]
+            to_angle = date_to_rotation[to][0] - base_angle
+            from_angle = date_to_rotation[key][0] - base_angle
+
+            year_diff = (today.year - int(year)) * 360
+            day_diff = to_angle % 360 - from_angle % 360
         else:
-            year = None
             assert key in date_to_rotation
 
-        to_angle = date_to_rotation[to][0] - date_to_rotation['01-01'][0]
-        from_angle = date_to_rotation[key][0] - date_to_rotation['01-01'][0]
+            base_angle = date_to_rotation['01-01'][0]
+            to_angle = date_to_rotation[to][0] - base_angle
+            from_angle = date_to_rotation[key][0] - base_angle
 
-        if year is None:
             day_diff = to_angle % 360 - from_angle % 360
-            year = str(today.year - int(day_diff <= 0))
-            year_diff = int(day_diff <= 0) * 360
-        else:
-            day_diff = to_angle % 360 - from_angle % 360
-            year_diff = (today.year - int(year)) * 360
+
+            year = today.year - int(day_diff <= 0)
+            while key == '02-29' and not isleap(year): year -= 1
+            year_diff, year = (today.year - year) * 360, str(year)
 
         angle_degree = year_diff + day_diff
         angle_radius = angle_degree * pi / 180

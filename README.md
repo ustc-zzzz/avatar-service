@@ -5,6 +5,11 @@
 
 Rotated Avatar Collection
 
+## ICO
+
+* [`GET /chrome.ico`](https://avatar.ustc-zzzz.net/chrome.ico)
+* [`GET /favicon.ico`](https://avatar.ustc-zzzz.net/favicon.ico)
+
 ## PNG
 
 * [`GET /chrome.png`](https://avatar.ustc-zzzz.net/chrome.png)

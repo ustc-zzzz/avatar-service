@@ -74,7 +74,7 @@ def format_to_json_number(number, fmt=None):
 date_to_rotation = dict(iterate_rotation_degree())
 
 
-def generate_chrome_png(im='qq', key=datetime.now(tz).strftime('%m-%d')):
+def generate_chrome_img(im='qq', key=datetime.now(tz).strftime('%m-%d')):
     if key.index('-') == 4:
         year, key = key.split('-', 1)
         assert key != '02-29' or isleap(int(year))
@@ -90,11 +90,7 @@ def generate_chrome_png(im='qq', key=datetime.now(tz).strftime('%m-%d')):
         layer = Image.open('fake_chrome_telegram_layer.png')
         image.alpha_composite(layer, dest=(0, 0), source=(0, 0))
 
-    io = BytesIO()
-    image.save(io, 'PNG')
-
-    io.seek(0)
-    return io
+    return image
 
 
 def generate_chrome_json(fmt=None, key='2017-11-24'):
@@ -154,12 +150,42 @@ def index():
     return redirect('https://github.com/ustc-zzzz/avatar-service')
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return redirect('/chrome.ico')
+
+
 @app.route('/chrome.png')
 def chrome_png():
     try:
         im = request.args.get('im', 'qq')
         key = request.args.get('date', datetime.now(tz).strftime('%m-%d'))
-        return send_file(generate_chrome_png(im=im, key=key), mimetype='image/png')
+
+        image = generate_chrome_img(im=im, key=key)
+
+        io = BytesIO()
+        image.save(io, 'PNG')
+
+        io.seek(0)
+        return send_file(io, mimetype='image/png')
+    except:
+        return abort(404)
+
+
+@app.route('/chrome.ico')
+def chrome_ico():
+    try:
+        im = request.args.get('im', 'qq')
+        key = request.args.get('date', datetime.now(tz).strftime('%m-%d'))
+
+        image = generate_chrome_img(im=im, key=key)
+        image = image.crop(box=(128, 128, 1152, 1152))
+
+        io = BytesIO()
+        image.save(io, 'ICO')
+
+        io.seek(0)
+        return send_file(io, mimetype='image/x-icon')
     except:
         return abort(404)
 

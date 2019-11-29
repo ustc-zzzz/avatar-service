@@ -24,15 +24,19 @@ tropical_year = 365.2425
 
 tz = timezone(timedelta(hours=8))
 
+
 def get_swept_area_derivative(angle, zero=0):
     return 0.5 / square(1 - earth_eccentricity * cos(angle))
+
 
 def get_swept_area(angle, zero=0):
     return quad(get_swept_area_derivative, 0, angle)[0] - zero
 
+
 def iterate_date_ratio():
     year = datetime.now(tz).year
-    while not isleap(year): year -= 1
+    while not isleap(year):
+        year -= 1
 
     ordinal = tropical_year
     date_step = timedelta(1)
@@ -44,6 +48,7 @@ def iterate_date_ratio():
         ordinal -= leap_day_step if key == '02-28' or key == '02-29' else 1
 
         yield (key, ordinal / tropical_year)
+
 
 def iterate_rotation_degree():
     max_area = get_swept_area(2 * pi)
@@ -59,87 +64,95 @@ def iterate_rotation_degree():
 
         yield (key, (angle * 180 / pi, speed * 180 / pi))
 
+
 def format_to_json_number(number, fmt=None):
     json = str(number) if fmt is None else fmt % number
     assert json_number_re.fullmatch(json)
     return json
 
+
 date_to_rotation = dict(iterate_rotation_degree())
 
+
 def generate_chrome_png(im='qq', key=datetime.now(tz).strftime('%m-%d')):
-        if key.index('-') == 4:
-            year, key = key.split('-', 1)
-            assert key != '02-29' or isleap(int(year))
+    if key.index('-') == 4:
+        year, key = key.split('-', 1)
+        assert key != '02-29' or isleap(int(year))
 
-        assert key in date_to_rotation
-        assert im == 'qq' or im == 'tim' or im == 'telegram'
-        rotation = date_to_rotation[key][0] - date_to_rotation['09-23'][0] + 60
+    assert key in date_to_rotation
+    assert im == 'qq' or im == 'tim' or im == 'telegram'
+    rotation = date_to_rotation[key][0] - date_to_rotation['09-23'][0] + 60
 
-        image = Image.open('fake_chrome.png')
-        image = image.rotate(rotation, resample=Image.CUBIC)
+    image = Image.open('fake_chrome.png')
+    image = image.rotate(rotation, resample=Image.CUBIC)
 
-        if im == 'telegram':
-            layer = Image.open('fake_chrome_telegram_layer.png')
-            image.alpha_composite(layer, dest=(0, 0), source=(0, 0))
+    if im == 'telegram':
+        layer = Image.open('fake_chrome_telegram_layer.png')
+        image.alpha_composite(layer, dest=(0, 0), source=(0, 0))
 
-        io = BytesIO()
-        image.save(io, 'PNG')
+    io = BytesIO()
+    image.save(io, 'PNG')
 
-        io.seek(0)
-        return io
+    io.seek(0)
+    return io
+
 
 def generate_chrome_json(fmt=None, key='2017-11-24'):
-        today = datetime.now(tz)
-        to = today.strftime('%m-%d')
+    today = datetime.now(tz)
+    to = today.strftime('%m-%d')
 
-        if key.index('-') == 4:
-            year, key = key.split('-', 1)
-            assert key in date_to_rotation
-            assert key != '02-29' or isleap(int(year))
+    if key.index('-') == 4:
+        year, key = key.split('-', 1)
+        assert key in date_to_rotation
+        assert key != '02-29' or isleap(int(year))
 
-            base_angle = date_to_rotation['01-01'][0]
-            to_angle = date_to_rotation[to][0] - base_angle
-            from_angle = date_to_rotation[key][0] - base_angle
+        base_angle = date_to_rotation['01-01'][0]
+        to_angle = date_to_rotation[to][0] - base_angle
+        from_angle = date_to_rotation[key][0] - base_angle
 
-            year_diff = (today.year - int(year)) * 360
-            day_diff = to_angle % 360 - from_angle % 360
-        else:
-            assert key in date_to_rotation
+        year_diff = (today.year - int(year)) * 360
+        day_diff = to_angle % 360 - from_angle % 360
+    else:
+        assert key in date_to_rotation
 
-            base_angle = date_to_rotation['01-01'][0]
-            to_angle = date_to_rotation[to][0] - base_angle
-            from_angle = date_to_rotation[key][0] - base_angle
+        base_angle = date_to_rotation['01-01'][0]
+        to_angle = date_to_rotation[to][0] - base_angle
+        from_angle = date_to_rotation[key][0] - base_angle
 
-            day_diff = to_angle % 360 - from_angle % 360
+        day_diff = to_angle % 360 - from_angle % 360
 
-            year = today.year - int(day_diff <= 0)
-            while key == '02-29' and not isleap(year): year -= 1
-            year_diff, year = (today.year - year) * 360, str(year)
+        year = today.year - int(day_diff <= 0)
+        while key == '02-29' and not isleap(year):
+            year -= 1
+        year_diff, year = (today.year - year) * 360, str(year)
 
-        angle_degree = year_diff + day_diff
-        angle_radius = angle_degree * pi / 180
+    angle_degree = year_diff + day_diff
+    angle_radius = angle_degree * pi / 180
 
-        speed_degree = date_to_rotation[to][1]
-        speed_radius = speed_degree * pi / 180
+    speed_degree = date_to_rotation[to][1]
+    speed_radius = speed_degree * pi / 180
 
-        angle_degree = format_to_json_number(angle_degree, fmt=fmt)
-        angle_radius = format_to_json_number(angle_radius, fmt=fmt)
-        speed_degree = format_to_json_number(speed_degree, fmt=fmt)
-        speed_radius = format_to_json_number(speed_radius, fmt=fmt)
+    angle_degree = format_to_json_number(angle_degree, fmt=fmt)
+    angle_radius = format_to_json_number(angle_radius, fmt=fmt)
+    speed_degree = format_to_json_number(speed_degree, fmt=fmt)
+    speed_radius = format_to_json_number(speed_radius, fmt=fmt)
 
-        json_from = dumps('%s-%s' % (year, key))
-        json_angle = rotation_format % (angle_degree, angle_radius)
-        json_speed = rotation_format % (speed_degree, speed_radius)
+    json_from = dumps('%s-%s' % (year, key))
+    json_angle = rotation_format % (angle_degree, angle_radius)
+    json_speed = rotation_format % (speed_degree, speed_radius)
 
-        return json_format % (json_from, json_angle, json_speed)
+    return json_format % (json_from, json_angle, json_speed)
+
 
 app = Flask(__name__)
 
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+
 @app.route('/')
 def index():
     return redirect('https://github.com/ustc-zzzz/avatar-service')
+
 
 @app.route('/chrome.png')
 def chrome_png():
@@ -149,6 +162,7 @@ def chrome_png():
         return send_file(generate_chrome_png(im=im, key=key), mimetype='image/png')
     except:
         return abort(404)
+
 
 @app.route('/chrome.json')
 def chrome_json():

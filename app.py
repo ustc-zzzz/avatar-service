@@ -66,27 +66,14 @@ def format_to_json_number(number, fmt=None):
 
 date_to_rotation = dict(iterate_rotation_degree())
 
-app = Flask(__name__)
-
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-
-@app.route('/')
-def index():
-    return redirect('https://github.com/ustc-zzzz/avatar-service')
-
-@app.route('/chrome.png')
-def chrome_png():
-    try:
-        im = request.args.get('im', 'qq')
-        key = request.args.get('date', datetime.now(tz).strftime('%m-%d'))
-
+def generate_chrome_png(im='qq', key=datetime.now(tz).strftime('%m-%d')):
         if key.index('-') == 4:
             year, key = key.split('-', 1)
             assert key != '02-29' or isleap(int(year))
 
         assert key in date_to_rotation
         assert im == 'qq' or im == 'tim' or im == 'telegram'
-        rotation = date_to_rotation[key][0] - date_to_rotation["09-23"][0] + 60
+        rotation = date_to_rotation[key][0] - date_to_rotation['09-23'][0] + 60
 
         image = Image.open('fake_chrome.png')
         image = image.rotate(rotation, resample=Image.CUBIC)
@@ -99,18 +86,11 @@ def chrome_png():
         image.save(io, 'PNG')
 
         io.seek(0)
+        return io
 
-        return send_file(io, mimetype='image/png')
-    except:
-        return abort(404)
-
-@app.route('/chrome.json')
-def chrome_json():
-    try:
+def generate_chrome_json(fmt=None, key='2017-11-24'):
         today = datetime.now(tz)
         to = today.strftime('%m-%d')
-        fmt = request.args.get('format', None)
-        key = request.args.get('from', '2017-11-24')
 
         if key.index('-') == 4:
             year, key = key.split('-', 1)
@@ -150,8 +130,32 @@ def chrome_json():
         json_from = dumps('%s-%s' % (year, key))
         json_angle = rotation_format % (angle_degree, angle_radius)
         json_speed = rotation_format % (speed_degree, speed_radius)
-        json_body = json_format % (json_from, json_angle, json_speed)
 
+        return json_format % (json_from, json_angle, json_speed)
+
+app = Flask(__name__)
+
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.route('/')
+def index():
+    return redirect('https://github.com/ustc-zzzz/avatar-service')
+
+@app.route('/chrome.png')
+def chrome_png():
+    try:
+        im = request.args.get('im', 'qq')
+        key = request.args.get('date', datetime.now(tz).strftime('%m-%d'))
+        return send_file(generate_chrome_png(im=im, key=key), mimetype='image/png')
+    except:
+        return abort(404)
+
+@app.route('/chrome.json')
+def chrome_json():
+    try:
+        fmt = request.args.get('format', None)
+        key = request.args.get('from', '2017-11-24')
+        json_body = generate_chrome_json(fmt=fmt, key=key)
         return Response(json_body, status=200, mimetype='application/json')
     except:
         return abort(404)
